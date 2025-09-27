@@ -1,0 +1,9 @@
+pandas>=1.5.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+plotly>=5.14.0
+yfinance>=0.2.18
+TA-Lib>=0.4.24
+scikit-learn>=1.2.1
+tensorflow>=2.13.0
+jupyterlab>=4.0.0
