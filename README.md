@@ -1,23 +1,10 @@
-```markdown
 # QuantFinance
 
-<p align="center">
-  <a href="https://github.com/AlexRabelo/QuantFinance/commits/main">
-    <img src="https://img.shields.io/github/last-commit/AlexRabelo/QuantFinance?style=flat-square" alt="Última atualização">
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/AlexRabelo/QuantFinance?style=flat-square" alt="Licença">
-  </a>
-  <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
-  </a>
-  <a href="https://github.com/AlexRabelo/QuantFinance/issues">
-    <img src="https://img.shields.io/github/issues/AlexRabelo/QuantFinance?style=flat-square" alt="Issues abertas">
-  </a>
-  <a href="https://github.com/AlexRabelo/QuantFinance/stargazers">
-    <img src="https://img.shields.io/github/stars/AlexRabelo/QuantFinance?style=flat-square" alt="Estrelas">
-  </a>
-</p>
+[![Última atualização](https://img.shields.io/github/last-commit/AlexRabelo/QuantFinance?style=flat-square)](https://github.com/AlexRabelo/QuantFinance/commits/main)
+[![Licença](https://img.shields.io/github/license/AlexRabelo/QuantFinance?style=flat-square)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Issues abertas](https://img.shields.io/github/issues/AlexRabelo/QuantFinance?style=flat-square)](https://github.com/AlexRabelo/QuantFinance/issues)
+[![Estrelas](https://img.shields.io/github/stars/AlexRabelo/QuantFinance?style=flat-square)](https://github.com/AlexRabelo/QuantFinance/stargazers)
 
 ---
 
