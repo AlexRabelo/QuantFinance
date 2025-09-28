@@ -1,74 +1,62 @@
+"""Funções de conveniência que encapsulam quantfinance.data."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Dict, Iterable, Optional
+
 import pandas as pd
-import yfinance as yf
 
-def carregar_csv(file_path, date_col='Date', rename_cols=None):
-    """
-    Lê um arquivo CSV contendo dados financeiros históricos, faz parsing da data e renomeia colunas.
+from quantfinance.data import core as core_io
+from quantfinance.data.io import carregar_csv, carregar_excel, carregar_profit
+from quantfinance.data.providers import (
+    download_b3_timeseries,
+    download_yfinance,
+    download_yfinance_batch,
+    load_b3_cotahist,
+    load_b3_local_csv,
+)
+from quantfinance.data.profit.excel import load_profit_workbook
 
-    Parâmetros:
-    - file_path: caminho do arquivo CSV
-    - date_col: nome da coluna de data para parsing (default: 'Date')
-    - rename_cols: dicionário para renomear colunas {nome_antigo: nome_novo}
-
-    Retorna:
-    DataFrame pandas com colunas padronizadas e coluna Date em datetime.
-    """
-    df = pd.read_csv(file_path, parse_dates=[date_col])
-    if rename_cols:
-        df.rename(columns=rename_cols, inplace=True)
-    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
-    df.dropna(subset=[date_col], inplace=True)
-    return df
-
-def carregar_excel(file_path, date_col='Data', rename_cols=None):
-    """
-    Lê um arquivo Excel contendo dados financeiros históricos, faz parsing da data e renomeia colunas.
-
-    Parâmetros:
-    - file_path: caminho do arquivo Excel
-    - date_col: nome da coluna de data original para parsing (ex: 'Data')
-    - rename_cols: dicionário para renomear colunas após o parsing
-    
-    Retorna:
-    DataFrame pandas com colunas padronizadas e coluna Date em datetime.
-    """
-    df = pd.read_excel(file_path)
-
-    # Convertendo antes de renomear
-    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
-    df.dropna(subset=[date_col], inplace=True)
-
-    # Renomear colunas depois
-    if rename_cols:
-        df.rename(columns=rename_cols, inplace=True)
-    
-    return df
+# Reexpõe os helpers com nomes em inglês para scripts/notebooks.
+load_csv = carregar_csv
+load_excel = carregar_excel
+load_profit = carregar_profit
 
 
-def baixar_yfinance(ticker, start=None, end=None, interval='1d', auto_adjust=True):
-    """
-    Baixa dados históricos via yfinance para o ticker informado.
+def load_profit_multi_sheet(
+    file_path: str | Path,
+    rename_cols: Optional[Dict[str, str]] = None,
+) -> Dict[str, pd.DataFrame]:
+    """Carrega um workbook inteiro do Profit retornando um dicionário por aba."""
+    return load_profit_workbook(file_path, rename_cols=rename_cols)
 
-    Parâmetros:
-    - ticker: código do ativo, ex: 'PETR4.SA'
-    - start: data inicial string 'AAAA-MM-DD'
-    - end: data final string 'AAAA-MM-DD'
-    - interval: intervalo dos dados ('1d', '1wk', '1mo', etc)
-    - auto_adjust: se ajusta os preços automaticamente
 
-    Retorna:
-    DataFrame com colunas padronizadas: ['Date','Open','High','Low','Close','Volume']
-    """
-    df = yf.download(ticker, start=start, end=end, interval=interval, auto_adjust=auto_adjust)
-    df.reset_index(inplace=True)
-    # Garantir nomes padronizados
-    df.rename(columns={
-        'Date': 'Date',
-        'Open': 'Open',
-        'High': 'High',
-        'Low': 'Low',
-        'Close': 'Close',
-        'Volume': 'Volume'
-    }, inplace=True)
-    df['Date'] = pd.to_datetime(df['Date'])
-    return df
+def load_b3_offline(
+    file_path: str | Path,
+    tickers: Optional[Iterable[str]] = None,
+) -> pd.DataFrame:
+    """Processa um arquivo COTAHIST para compor um histórico offline."""
+    return load_b3_cotahist(file_path, tickers=tickers)
+
+
+def load_b3_csv(
+    file_path: str | Path,
+    date_col: str = "Date",
+    delimiter: str = ";",
+) -> pd.DataFrame:
+    """Lê um CSV da B3 e padroniza a coluna de data."""
+    return load_b3_local_csv(file_path, date_col=date_col, delimiter=delimiter)
+
+
+def ensure_datetime(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """Expõe o helper de normalização de datas do módulo core."""
+    return core_io.ensure_datetime(df, column)
+
+# Mantém aliases utilizados anteriormente em português.
+baixar_yfinance = download_yfinance
+baixar_yfinance_lote = download_yfinance_batch
+baixar_b3 = download_b3_timeseries
+carregar_b3_csv = load_b3_csv
+carregar_b3_cotahist = load_b3_offline
+carregar_profit_planilha = load_profit_multi_sheet

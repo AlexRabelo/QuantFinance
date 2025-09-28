@@ -1,118 +1,90 @@
 # QuantFinance
 
-[![Última atualização](https://img.shields.io/github/last-commit/AlexRabelo/QuantFinance?style=flat-square)](https://github.com/AlexRabelo/QuantFinance/commits/main)
-[![Licença](https://img.shields.io/github/license/AlexRabelo/QuantFinance?style=flat-square)](LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Issues abertas](https://img.shields.io/github/issues/AlexRabelo/QuantFinance?style=flat-square)](https://github.com/AlexRabelo/QuantFinance/issues)
-[![Estrelas](https://img.shields.io/github/stars/AlexRabelo/QuantFinance?style=flat-square)](https://github.com/AlexRabelo/QuantFinance/stargazers)
+QuantFinance centraliza experimentos de análise técnica, pesquisa quantitativa e geração de relatórios para ações brasileiras e globais. O projeto agora funciona como um pacote Python (`quantfinance`) com pipelines de dados modulares, indicadores reutilizáveis e ferramentas de reporte em texto e visual.
 
 ---
 
-## 📋 Sobre o Projeto
+## Objetivos do Projeto
 
-Projeto de análise gráfica e quantitativa aplicada ao mercado financeiro, utilizando ciência de dados e inteligência artificial para extrair insights e previsões a partir de dados históricos.
-
-Este projeto é uma jornada de aprendizado e aplicação prática em análise técnica, indicadores financeiros, machine learning e deep learning, focado em finanças quantitativas.
-
----
-
-## 🎯 Objetivos
-
-| Funcionalidade              | Descrição                                                      |
-|----------------------------|----------------------------------------------------------------|
-| 📊 Análise Gráfica          | Visualização e interpretação de gráficos financeiros (candles, suporte, resistência) |
-| 📈 Indicadores Técnicos     | Cálculo e uso de médias móveis, RSI, MACD e outros indicadores |
-| 🤖 Modelagem Preditiva      | Desenvolvimento de modelos ML/Deep Learning para previsão de preços e tendências |
-| 🔄 Automação e Backtesting  | Automação de coleta de dados, execução e teste de estratégias quantitativas |
-| 📚 Documentação e Portfólio | Organização do conhecimento com exemplos práticos para portfólio |
+- Explorar gráficos e indicadores (médias móveis, osciladores, bandas de volatilidade)
+- Gerar cenários a partir de suportes, resistências, rompimentos e níveis de Fibonacci
+- Manter fluxos offline com arquivos oficiais da B3 e exports do Profit Pro
+- Evoluir para análises multiativos, estruturas de opções e backtesting completo
 
 ---
 
-## 🏗️ Estrutura do Repositório
+## Estrutura do Repositório
 
 ```
 QuantFinance/
-│
-├── notebooks/            # Jupyter Notebooks com análises e experimentos
-├── scripts/              # Scripts Python para automação e suporte
-├── data/                 # Dados financeiros brutos e processados (não versionados)
-├── models/               # Modelos treinados e checkpoints
-├── reports/              # Gráficos, relatórios e saídas geradas
-├── requirements.txt      # Dependências Python
-├── README.md             # Este arquivo
-└── .gitignore            # Arquivo para ignorar arquivos no git
+├── quantfinance/           # Pacote Python com módulos reutilizáveis
+│   ├── data/               # Subprojeto: ingestão de dados (Yahoo, B3, Profit)
+│   ├── indicators/         # Indicadores técnicos organizados por tema
+│   ├── analysis/           # Análises de níveis de preço, divergências e tendência
+│   └── reporting/          # Relatórios textuais e visuais
+├── scripts/                # Exemplos CLI e camadas de compatibilidade
+├── notebooks/              # Notebooks exploratórios
+├── data/                   # Dados locais (fora do versionamento)
+├── reports/                # Saídas geradas (HTML, imagens)
+├── requirements.txt        # Dependências de runtime
+└── README.md               # Este arquivo
 ```
 
----
-
-## ⚙️ Como começar
-
-1. Clone o repositório  
-```
-git clone https://github.com/AlexRabelo/QuantFinance.git
-cd QuantFinance
-```
-
-2. Instale as dependências  
-```
-pip install -r requirements.txt
-```
-
-3. Abra os notebooks no Google Colab para execução interativa, ou localmente via Jupyter Notebook/Lab.
+Cada pasta relevante possui um `README.md` próprio descrevendo o fluxo local.
 
 ---
 
-## 🚦 Roadmap
+## Como Começar
 
-- [x] Conceitos básicos de análise gráfica  
-- [x] Indicadores técnicos e visualização  
-- [ ] Modelagem com machine learning  
-- [ ] Aplicação de deep learning (LSTM, GRU)  
-- [ ] Backtesting de estratégias quantitativas  
-- [ ] Automatização de coleta de dados via API  
+1. **Instalar dependências**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
----
+2. **Preparar os dados**
+   - Use o pipeline do Yahoo (`quantfinance.data.yahoo`) para benchmarks rápidos
+   - Monte a base offline da B3 com os parsers `quantfinance.data.b3`
+   - Importe exports do Profit Pro via `quantfinance.data.profit`
 
-## 📖 Documentação e Recursos
+3. **Gerar insights**
+   ```python
+   from quantfinance.data.providers import download_yfinance
+   from quantfinance.reporting import build_market_snapshot, summarise_snapshot
 
-- [Python Pandas Documentation](https://pandas.pydata.org/docs/)  
-- [TA-Lib Documentation](https://mrjbq7.github.io/ta-lib/)  
-- [Yahoo Finance yfinance API](https://pypi.org/project/yfinance/)  
-- [TensorFlow](https://www.tensorflow.org/) / [PyTorch](https://pytorch.org/) para deep learning  
+   df = download_yfinance("PETR4.SA", start="2023-01-01")
+   snapshot = build_market_snapshot(df)
+   print(summarise_snapshot(snapshot))
+   ```
 
----
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas!  
-Para contribuir:  
-
-1. Faça um fork do projeto  
-2. Crie uma branch para sua feature (`git checkout -b feature/minha-feature`)  
-3. Commit suas modificações (`git commit -m 'Descrição da feature'`)  
-4. Push para sua branch (`git push origin feature/minha-feature`)  
-5. Abra um Pull Request
+4. **Criar relatórios visuais** com `scripts/visualization.py` ou diretamente com `quantfinance.reporting.plot_full_analysis`.
 
 ---
 
-## 📄 License
+## Subprojetos de Dados
 
-Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
+- `quantfinance/data/yahoo` – downloads em lote, exportação para Parquet e cache do Yahoo Finance
+- `quantfinance/data/b3` – parsers dos arquivos oficiais COTAHIST e persistência para um data lake offline
+- `quantfinance/data/profit` – leitura de workbooks do Profit Pro com uma aba por ativo
 
----
-
-**⭐ Se este projeto te ajudou, considere dar uma estrela!**
-
-Made with ❤️ by [Alex Rabelo](https://github.com/AlexRabelo)
+Consulte os README de cada pasta para instruções detalhadas, pressupostos e dicas.
 
 ---
 
-## 👤 Sobre o Autor
+## Roadmap
 
-[![Alex Rabelo - Linkedin](https://img.shields.io/badge/LinkedIn-Perfil-blue?logo=linkedin&logoColor=white&style=flat-square)](https://www.linkedin.com/in/alexrabelo/)
+- [x] Reorganizar o pacote e o pipeline de relatórios
+- [x] Separar a ingestão de dados em Yahoo, B3 e Profit
+- [ ] Implementar testes automatizados para loaders, indicadores e análises
+- [ ] Incorporar eventos da B3 (splits, dividendos) e preços ajustados
+- [ ] Construir um motor de backtesting com sizing e custos de transação
+- [ ] Integrar dados de opções e análises de estruturas estruturadas
 
-**Alex Rabelo**  
-Estudante de Ciência de Dados no Mackenzie com experiência em infraestrutura de TI e cloud. Apaixonado por análise quantitativa, automação e aprendizagem contínua.
-
-> Fique à vontade para conectar-se e trocar ideias sobre finanças, ciência de dados e tecnologia!
 ---
+
+## Contribuindo
+
+1. Faça um fork do repositório e crie uma branch temática
+2. Rode os scripts de verificação em `scripts/` ou adicione cobertura `pytest` para novas funcionalidades
+3. Abra um pull request explicando a mudança e requisitos de dados adicionais
+
+Estrelas, issues e ideias são muito bem-vindas. Bons trades quantitativos!
