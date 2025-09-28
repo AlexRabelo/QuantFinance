@@ -5,7 +5,7 @@ Centraliza todos os pipelines de dados utilizados pelo pacote QuantFinance. Cada
 ## Layout
 
 - `core.py` – utilidades comuns (normalização de datas, leitores genéricos de CSV/Excel)
-- `io.py` – camadas de compatibilidade usadas por scripts e notebooks legados
+- `io.py` – camadas de compatibilidade para notebooks legados
 - `providers.py` – fachada que expõe os provedores ativos para o restante do código
 - `yahoo/` – download e cache para Yahoo Finance
 - `b3/` – ingestão offline dos arquivos COTAHIST da B3
@@ -16,7 +16,7 @@ Centraliza todos os pipelines de dados utilizados pelo pacote QuantFinance. Cada
 - Em código novo, prefira chamar os módulos especializados (`yahoo`, `b3`, `profit`).
 - Use `providers.download_yfinance_batch` para preencher um cache local de vários tickers.
 - Combine `b3.cotahist.save_daily_history` com um agendador (cron, Prefect) para manter o lake offline atualizado.
-- Notebooks antigos podem continuar usando `scripts/data_loader.py`, que redireciona para este pacote.
+- Notebooks antigos podem continuar usando `quantfinance.data.io`, que mantém assinaturas anteriores.
 
 ## Próximos Passos Sugeridos
 

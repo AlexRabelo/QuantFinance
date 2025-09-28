@@ -23,6 +23,13 @@ class YahooConfig:
     auto_adjust: bool = True
 
 
+def _flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Converte colunas MultiIndex em colunas simples."""
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [col[0] if col[0] else col[1] for col in df.columns]
+    return df
+
+
 def download_history(
     ticker: str,
     start: Optional[str] = None,
@@ -43,16 +50,27 @@ def download_history(
         raise ValueError(f"O Yahoo Finance não retornou dados para {ticker}")
 
     data = data.reset_index()
+    data = _flatten_columns(data)
+
     rename_map = {
         "Date": "Date",
+        "Datetime": "Date",
         "Open": "Open",
         "High": "High",
         "Low": "Low",
         "Close": "Close",
         "Adj Close": "AdjClose",
+        "AdjClose": "AdjClose",
         "Volume": "Volume",
     }
-    data = data.rename(columns=rename_map)
+    data = data.rename(columns={col: rename_map.get(col, col) for col in data.columns})
+
+    if "Date" not in data.columns:
+        raise KeyError(
+            f"Coluna de data não encontrada após o download do Yahoo para {ticker}. "
+            f"Colunas disponíveis: {list(data.columns)}"
+        )
+
     data = ensure_datetime(data, "Date")
     return data
 

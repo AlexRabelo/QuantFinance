@@ -4,7 +4,7 @@ Utilitários para ler workbooks Excel exportados do Profit Pro com uma aba por a
 
 ## Funções Principais
 
-- `load_profit_sheet` – carrega e normaliza uma aba (fusões de Data/Hora opcionais)
+- `load_profit_sheet` – carrega e normaliza uma aba (fusão de Data/Hora opcional)
 - `load_profit_workbook` – percorre todas as abas e devolve um dicionário de `DataFrame`
 
 ## Fluxo Típico

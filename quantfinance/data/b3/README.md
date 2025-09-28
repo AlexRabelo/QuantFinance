@@ -8,11 +8,12 @@ Ferramentas para transformar os arquivos oficiais COTAHIST da B3 em uma base de 
 - `save_daily_history` – salva arquivos Parquet particionados (por ticker, por padrão)
 - `latest_session` – informa o último pregão disponível no `DataFrame`
 
-## Montando a Base
+## Workflow recomendado
 
-1. Baixe os arquivos `COTAHIST_AAAA.ZIP` no portal de Market Data da B3.
-2. Rode `load_cotahist` para cada arquivo e filtre com `tickers=["PETR4", "VALE3"]` se necessário.
-3. Concatene os anos e utilize `save_daily_history` para gravar em `data/processed/b3`.
+1. Baixe `COTAHIST_AAAAA.ZIP` no portal de Market Data e coloque em `data/raw/b3/`.
+2. Ajuste `config/carteira_b3.yaml` com os tickers desejados (por exemplo, carteira personalizada ou composição do índice).
+3. Execute `python examples/b3_runner.py` com `PYTHONPATH` apontando para o projeto.
+4. Os resultados ficam em `data/processed/b3/` (`*_raw.parquet`, `*_enriched.parquet`) e `data/processed/b3/excel/` (planilhas enriquecidas por ticker).
 
 ## Observações
 
