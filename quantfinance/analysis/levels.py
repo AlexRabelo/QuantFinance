@@ -30,6 +30,11 @@ class LevelDetail:
         if tag not in self.tags:
             self.tags.append(tag)
 
+    def add_tag(self, tag: str, increment: float = 0.0) -> None:
+        if tag not in self.tags:
+            self.tags.append(tag)
+        self.weight += increment
+
 
 @dataclass
 class PriceLevels:
@@ -46,33 +51,45 @@ class PriceLevels:
     resistance_details: List[LevelDetail] = field(default_factory=list)
 
 
-def _detect_extrema(series: pd.Series, order: int, comparator) -> List[float]:
-    indices = argrelextrema(series.values, comparator, order=order)[0]
+def _dropna_series(series: pd.Series) -> pd.Series:
+    return series.dropna()
+
+
+def _detect_supports(series: pd.Series, order: int) -> List[float]:
+    series = _dropna_series(series)
+    if len(series) < order * 2 + 1:
+        return []
+    indices = argrelextrema(series.values, np.less_equal, order=order)[0]
     return series.iloc[indices].tolist()
 
 
-def detect_local_levels(df: pd.DataFrame, column: str = "Close", order: int = 5) -> tuple[List[float], List[float]]:
-    """Detect local support and resistance levels using relative extrema."""
-    supports = _detect_extrema(df[column], order=order, comparator=np.less_equal)
-    resistances = _detect_extrema(df[column], order=order, comparator=np.greater_equal)
-    return supports, resistances
+def _detect_resistances(series: pd.Series, order: int) -> List[float]:
+    series = _dropna_series(series)
+    if len(series) < order * 2 + 1:
+        return []
+    indices = argrelextrema(series.values, np.greater_equal, order=order)[0]
+    return series.iloc[indices].tolist()
 
 
 def detect_round_numbers(series: pd.Series, step: float = 5.0, width: int = 5) -> List[float]:
-    """Generate round numbers around the series mean within a specified width."""
     center = series.mean()
     start = (center // step - width) * step
     return [start + i * step for i in range(2 * width + 1)]
 
 
-def compute_special_levels(df: pd.DataFrame, column: str = "Close") -> tuple[float, float, float, float]:
-    """Compute historical extremes and rolling 52-week extrema."""
-    historical_min = float(df[column].min())
-    historical_max = float(df[column].max())
+def compute_special_levels(df: pd.DataFrame) -> tuple[float, float, float, float]:
+    close_series = df["Close"]
+    high_series = df.get("High", close_series)
+    low_series = df.get("Low", close_series)
 
-    weekly = df[column].resample("W").agg(["min", "max"])
-    rolling_min = float(weekly["min"].rolling(window=52, min_periods=1).min().iloc[-1])
-    rolling_max = float(weekly["max"].rolling(window=52, min_periods=1).max().iloc[-1])
+    historical_min = float(low_series.min())
+    historical_max = float(high_series.max())
+
+    weekly_low = low_series.resample("W").min()
+    weekly_high = high_series.resample("W").max()
+
+    rolling_min = float(weekly_low.rolling(window=52, min_periods=1).min().iloc[-1])
+    rolling_max = float(weekly_high.rolling(window=52, min_periods=1).max().iloc[-1])
     return historical_min, historical_max, rolling_min, rolling_max
 
 
@@ -109,51 +126,82 @@ def _finalize_candidates(candidates: List[LevelDetail]) -> List[LevelDetail]:
 def consolidate_levels(
     df: pd.DataFrame,
     column: str = "Close",
-    order: int = 5,
     round_step: float = 5.0,
     round_width: int = 5,
     grouping_tolerance_pct: float = 0.5,
 ) -> PriceLevels:
-    """Return a structured view of relevant price levels."""
-    supports_local, resistances_local = detect_local_levels(df, column=column, order=order)
-    round_numbers = detect_round_numbers(df[column], step=round_step, width=round_width)
-    hist_min, hist_max, roll_min, roll_max = compute_special_levels(df, column=column)
+    if column not in df.columns:
+        raise ValueError(f"coluna '{column}' ausente no DataFrame de níveis")
+
+    df = df.sort_index()
+    close_series = df[column]
+    high_series = df.get("High", close_series)
+    low_series = df.get("Low", close_series)
+
+    round_numbers = detect_round_numbers(close_series, step=round_step, width=round_width)
+    hist_min, hist_max, roll_min, roll_max = compute_special_levels(df)
 
     support_details: List[LevelDetail] = []
     resistance_details: List[LevelDetail] = []
 
-    for value in supports_local:
+    swing_configs = [
+        (2, 1.0, "swing_curto"),
+        (5, 1.5, "swing_medio"),
+        (10, 2.0, "swing_longo"),
+    ]
+
+    for swing_order, weight, tag in swing_configs:
+        tol = grouping_tolerance_pct * max(1.0, swing_order / 5)
+        for value in _detect_supports(low_series, swing_order):
+            _add_candidate(
+                support_details,
+                value,
+                weight=weight,
+                tag=tag,
+                tolerance_pct=tol,
+            )
+        for value in _detect_resistances(high_series, swing_order):
+            _add_candidate(
+                resistance_details,
+                value,
+                weight=weight,
+                tag=tag,
+                tolerance_pct=tol,
+            )
+
+    low_weekly = low_series.resample("W").min()
+    high_weekly = high_series.resample("W").max()
+
+    for value in _detect_supports(low_weekly, order=2):
         _add_candidate(
             support_details,
             value,
-            weight=1.0,
-            tag="swing",
-            tolerance_pct=grouping_tolerance_pct,
+            weight=3.5,
+            tag="swing_semanal",
+            tolerance_pct=grouping_tolerance_pct * 2,
         )
-
-    for value in resistances_local:
+    for value in _detect_resistances(high_weekly, order=2):
         _add_candidate(
             resistance_details,
             value,
-            weight=1.0,
-            tag="swing",
-            tolerance_pct=grouping_tolerance_pct,
+            weight=3.5,
+            tag="swing_semanal",
+            tolerance_pct=grouping_tolerance_pct * 2,
         )
 
-    # Round numbers contribute a smaller weight on ambos lados
     for value in round_numbers:
         _add_candidate(
             support_details,
             value,
             weight=0.3,
-            tag="round",
+            tag="numero_redondo",
             tolerance_pct=grouping_tolerance_pct * 2,
         )
         _add_candidate(
             resistance_details,
             value,
             weight=0.3,
-            tag="round",
+            tag="numero_redondo",
             tolerance_pct=grouping_tolerance_pct * 2,
         )
 
@@ -161,14 +209,14 @@ def consolidate_levels(
         support_details,
         roll_min,
         weight=3.0,
-        tag="rolling_52w",
+        tag="minimo_52s",
         tolerance_pct=grouping_tolerance_pct,
     )
     _add_candidate(
         resistance_details,
         roll_max,
         weight=3.0,
-        tag="rolling_52w",
+        tag="maximo_52s",
         tolerance_pct=grouping_tolerance_pct,
     )
 
@@ -176,19 +224,29 @@ def consolidate_levels(
         support_details,
         hist_min,
         weight=4.0,
-        tag="historical",
+        tag="minimo_historico",
         tolerance_pct=grouping_tolerance_pct,
     )
     _add_candidate(
         resistance_details,
         hist_max,
         weight=4.0,
-        tag="historical",
+        tag="maximo_historico",
         tolerance_pct=grouping_tolerance_pct,
     )
 
+    latest_price = float(close_series.iloc[-1])
+
+    migrated_resistances: List[LevelDetail] = []
+    for detail in resistance_details:
+        if "swing_semanal" in detail.tags and detail.value < latest_price:
+            detail.add_tag("topo_rompido", increment=2.0)
+            support_details.append(detail)
+        else:
+            migrated_resistances.append(detail)
+
     support_details = _finalize_candidates(support_details)
-    resistance_details = _finalize_candidates(resistance_details)
+    resistance_details = _finalize_candidates(migrated_resistances)
 
     supports = [detail.value for detail in support_details]
     resistances = [detail.value for detail in resistance_details]
@@ -207,14 +265,13 @@ def consolidate_levels(
 
 
 def group_levels(levels: Iterable[float], tolerance_pct: float = 0.5) -> List[float]:
-    """Compatibility helper that groups close levels."""
-    details: List[LevelDetail] = []
+    candidates: List[LevelDetail] = []
     for value in levels:
         _add_candidate(
-            details,
+            candidates,
             value,
             weight=1.0,
-            tag="generic",
+            tag="generico",
             tolerance_pct=tolerance_pct,
         )
-    return [detail.value for detail in _finalize_candidates(details)]
+    return [detail.value for detail in _finalize_candidates(candidates)]

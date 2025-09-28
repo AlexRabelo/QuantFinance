@@ -6,8 +6,8 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
+from scipy.signal import argrelextrema
 
-from quantfinance.analysis.levels import detect_local_levels
 from quantfinance.indicators import (
     bollinger_bands,
     ema,
@@ -46,15 +46,20 @@ def _calc_basic_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
 def _calc_extrema_flags(df: pd.DataFrame, order: int = 3) -> pd.DataFrame:
     enriched = df.copy()
-    supports, resistances = detect_local_levels(
-        enriched.set_index("Date"), column="Close", order=order
-    )
+    low_series = enriched.get("Low", enriched["Close"])
+    high_series = enriched.get("High", enriched["Close"])
 
-    support_set = set(round(level, 2) for level in supports)
-    resistance_set = set(round(level, 2) for level in resistances)
+    supports_idx = argrelextrema(low_series.values, np.less_equal, order=order)[0]
+    resistances_idx = argrelextrema(high_series.values, np.greater_equal, order=order)[0]
 
-    enriched["IsSupport"] = enriched["Close"].round(2).isin(support_set)
-    enriched["IsResistance"] = enriched["Close"].round(2).isin(resistance_set)
+    enriched["IsSupport"] = False
+    enriched["IsResistance"] = False
+
+    if supports_idx.size:
+        enriched.iloc[supports_idx, enriched.columns.get_loc("IsSupport")] = True
+    if resistances_idx.size:
+        enriched.iloc[resistances_idx, enriched.columns.get_loc("IsResistance")] = True
+
     return enriched
 
 
@@ -79,8 +84,8 @@ def _calc_returns(df: pd.DataFrame) -> pd.DataFrame:
     close = enriched["Close"].replace(0, np.nan)
     enriched["Return_Log"] = np.log(close / close.shift())
 
-    high = enriched["High"]
-    low = enriched["Low"]
+    high = enriched.get("High", enriched["Close"])
+    low = enriched.get("Low", enriched["Close"])
     close_prev = enriched["Close"].shift()
     tr_components = pd.concat(
         [
@@ -96,12 +101,11 @@ def _calc_returns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def enrich_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Adiciona indicadores e métricas úteis para análise."""
     if "Date" not in df.columns:
         raise ValueError("DataFrame precisa incluir coluna 'Date' para enriquecer.")
 
     enriched = _calc_basic_indicators(df)
-    enriched = _calc_extrema_flags(enriched, order=3)
+    enriched = _calc_extrema_flags(enriched)
     enriched = _calc_52w_metrics(enriched)
     enriched = _calc_returns(enriched)
     return enriched
