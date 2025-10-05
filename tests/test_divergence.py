@@ -26,3 +26,5 @@ def test_detect_macd_histogram_divergence_bearish() -> None:
     signals = detect_macd_histogram_divergences(prices, histogram, order=1, min_distance=1)
 
     assert any(sig.indicator == "MACD" and sig.kind == "bearish" for sig in signals)
+
+

@@ -112,6 +112,17 @@ Cada pasta relevante possui um `README.md` próprio descrevendo o fluxo local.
    python examples/manual_smoke.py
    ```
 
+11. **Fluxo completo sugerido (validação diária)**
+    ```bash
+    pip install -r requirements.txt
+    python3 -m pytest
+    python manage.py yahoo --workers 8
+    python manage.py b3
+    python manage.py audit --source both --max-gap-yahoo 7 --max-gap-b3 10 --json reports/audit.json
+    python manage.py snapshot --source yahoo BOVA11
+    ```
+    Sequência para verificar dependências, rodar testes, atualizar dados, auditar e gerar o snapshot (com setups sugeridos e correlação macro) do ativo desejado.
+
 ---
 
 ## Subprojetos de Dados

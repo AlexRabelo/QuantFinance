@@ -16,6 +16,8 @@ transformar em rotinas automatizadas (backtests, dashboards, notebooks).
 - [`trend_following/`](trend_following/README.md) – Combinações de sinais
   consagrados (Setups 1, 2, 3 de Larry Williams, rompimentos, pullbacks) para
   navegar em tendências fortes.
+  para identificar fases impulsivas/corretivas e pontos de inflexão usando
+  pivôs e retrações de Fibonacci.
 
 Cada subdiretório traz um `README.md` descrevendo hipóteses, indicadores
 utilizados, gatilhos de entrada/saída e sugestões de validação.
