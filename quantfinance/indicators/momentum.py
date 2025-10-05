@@ -15,7 +15,10 @@ def rsi(series: pd.Series, window: int = 14) -> pd.Series:
 
     rs = avg_gain / avg_loss.replace({0: pd.NA})
     rsi_series = 100 - (100 / (1 + rs))
-    return rsi_series.fillna(50)
+    numeric = pd.to_numeric(rsi_series, errors="coerce")
+    if pd.api.types.is_float_dtype(numeric.dtype):
+        return numeric.fillna(50.0)
+    return numeric.astype("float64", copy=False).fillna(50.0)
 
 
 def stochastic_oscillator(high: pd.Series, low: pd.Series, close: pd.Series, window: int = 14) -> pd.DataFrame:

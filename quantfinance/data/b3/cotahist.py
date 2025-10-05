@@ -128,7 +128,24 @@ def save_daily_history(
 
     for ticker, group in df.groupby(partition_by):
         target = output / f"{ticker}.parquet"
-        group.to_parquet(target, index=False)
+        group_sorted = group.sort_values("Date").reset_index(drop=True)
+
+        if target.exists():
+            existing = pd.read_parquet(target)
+            combined = pd.concat([existing, group_sorted], ignore_index=True)
+        else:
+            combined = group_sorted
+
+        if "Date" in combined.columns:
+            combined = (
+                combined.drop_duplicates(subset=["Date"], keep="last")
+                .sort_values("Date")
+                .reset_index(drop=True)
+            )
+        else:
+            combined = combined.drop_duplicates().reset_index(drop=True)
+
+        combined.to_parquet(target, index=False)
 
 
 def latest_session(df: pd.DataFrame) -> pd.Timestamp:

@@ -74,6 +74,7 @@ Cada pasta relevante possui um `README.md` próprio descrevendo o fluxo local.
    O runner lê `config/carteira_base.yaml`, baixa os ativos suportados pelo Yahoo, salva séries **raw** (`*_raw.parquet`), gera versões **enriched** com indicadores/flags (`*_enriched.parquet`) e cria `carteira_base.xlsx` com uma aba por ativo.
 
 6. **Processar arquivos COTAHIST da B3**
+   Os arquivos oficiais podem ser baixados no portal de séries históricas da B3: https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/
    ```bash
    # baixe os arquivos COTAHIST_AAAAA.ZIP e coloque em data/raw/b3
    python examples/b3_runner.py

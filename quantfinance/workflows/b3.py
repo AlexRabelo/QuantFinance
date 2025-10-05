@@ -11,6 +11,9 @@ import yaml
 from quantfinance.data.b3.cotahist import load_cotahist, save_daily_history
 from quantfinance.workflows.features.indicators import enrich_dataframe
 
+# Os arquivos COTAHIST devem ser baixados do portal oficial:
+# https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/
+# Salve os .ZIP correspondentes em data/raw/b3.
 RAW_DIR = Path("data/raw/b3")
 PROCESSED_DIR = Path("data/processed/b3")
 CONFIG_PATH = Path("config/carteira_b3.yaml")
@@ -52,7 +55,11 @@ def save_enriched_assets(df: pd.DataFrame, output_dir: Path = PROCESSED_DIR) -> 
     consolidated: dict[str, pd.DataFrame] = {}
 
     for ticker, group in df.groupby("Ticker"):
-        group_sorted = group.sort_values("Date")
+        group_sorted = (
+            group.sort_values("Date")
+            .drop_duplicates(subset=["Date"], keep="last")
+            .reset_index(drop=True)
+        )
         raw_file = output_dir / f"{ticker}_raw.parquet"
         enriched_file = output_dir / f"{ticker}_enriched.parquet"
 
