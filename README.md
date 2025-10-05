@@ -66,12 +66,12 @@ Cada pasta relevante possui um `README.md` próprio descrevendo o fluxo local.
    ```
 
 5. **Coletar dados de uma carteira via Yahoo Finance**
-   ```bash
-   pip install -r requirements.txt
-   $env:PYTHONPATH = "$PWD"   # PowerShell; em cmd use set PYTHONPATH=%CD%
-   python examples/portfolio_runner.py
-   ```
-   O runner lê `config/carteira_base.yaml`, baixa os ativos suportados pelo Yahoo, salva séries **raw** (`*_raw.parquet`), gera versões **enriched** com indicadores/flags (`*_enriched.parquet`) e cria `carteira_base.xlsx` com uma aba por ativo.
+ ```bash
+ pip install -r requirements.txt
+ $env:PYTHONPATH = "$PWD"   # PowerShell; em cmd use set PYTHONPATH=%CD%
+ python examples/portfolio_runner.py
+ ```
+  O runner lê `config/tickets.yaml`, baixa a mesma lista de ativos usada na B3 (composição do IBrX‑100) e os ETFs/ETNs auxiliares de diagnóstico (BOVA11, SMAL11, XFIX11, IMAB11, IRFM11, HASH11, IVVB11, USDB11.SA), salva séries **raw** (`*_raw.parquet`), gera versões **enriched** com indicadores/flags (`*_enriched.parquet`) e cria `carteira_base.xlsx` com uma aba por ativo. Reexecuções são incrementais: apenas o “delta” diário é baixado (ajuste `--workers` para controlar o paralelismo).
 
 6. **Processar arquivos COTAHIST da B3**
    Os arquivos oficiais podem ser baixados no portal de séries históricas da B3: https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/
@@ -79,9 +79,34 @@ Cada pasta relevante possui um `README.md` próprio descrevendo o fluxo local.
    # baixe os arquivos COTAHIST_AAAAA.ZIP e coloque em data/raw/b3
    python examples/b3_runner.py
    ```
-   O pipeline lê os arquivos, filtra os tickers definidos em `config/carteira_b3.yaml`, atualiza `data/processed/b3` com Parquets raw/enriched e gera planilhas enriquecidas por ticker em `data/processed/b3/excel`.
+   O pipeline lê os arquivos, filtra os tickers definidos na seção `b3.tickers` de `config/tickets.yaml` (mesmo universo do Yahoo), atualiza `data/processed/b3` com Parquets raw/enriched e gera planilhas enriquecidas por ticker em `data/processed/b3/excel`. Para ver os resumos técnicos consolidados use o comando `python manage.py snapshot --source b3`.
 
-7. **Explorar exemplos**
+7. **Exibir snapshots dos dados processados**
+   ```bash
+   # dados processados via Yahoo
+   python manage.py snapshot --source yahoo --tickers PETR4.SA VALE3.SA
+
+   # dados processados via B3 (tickers separados por vírgula ou espaço)
+   python manage.py snapshot --source b3 --tickers BOVA11,CEAB3
+
+   # omita --tickers para listar todos os ativos disponíveis na base
+   python manage.py snapshot --source b3
+   ```
+   O comando procura os arquivos `*_enriched.parquet` nas pastas `data/processed/carteira_base` (Yahoo) ou `data/processed/b3` (B3) e imprime o resumo técnico dos ativos solicitados.
+
+8. **Auditar cobertura e qualidade das séries**
+ ```bash
+  python manage.py audit --source both --max-gap-yahoo 7 --max-gap-b3 10 --json reports/audit.json
+  ```
+  O auditor verifica se todos os tickers de `tickets.yaml` possuem dados processados, alerta séries com lacunas acima do limite configurado e (opcionalmente) exporta um JSON consolidado com os alertas.
+
+9. **Gerar rankings e análises**
+   ```bash
+   python examples/momentum_ranking.py
+   ```
+   Usa os Parquets em `data/processed/carteira_base` para calcular retornos de 21/63/126 dias e exporta o ranking consolidado.
+
+10. **Explorar exemplos adicionais**
    ```bash
    python examples/manual_smoke.py
    ```
@@ -122,8 +147,9 @@ Estrelas, issues e ideias são muito bem-vindas. Bons trades quantitativos!
 
 8. **Executar via linha de comando (manage.py)**
    ```bash
-   python manage.py yahoo   # baixa via Yahoo conforme carteira_base.yaml
-   python manage.py b3      # processa arquivos COTAHIST conforme carteira_b3.yaml
+python manage.py yahoo   # baixa via Yahoo conforme tickets.yaml (seção portfolio)
+python manage.py b3      # processa arquivos COTAHIST conforme tickets.yaml (seção b3)
+python manage.py audit   # valida cobertura dos dados processados e identifica gaps
    python manage.py profit  # placeholder para integração Profit (em desenvolvimento)
    ```
 

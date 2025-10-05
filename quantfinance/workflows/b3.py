@@ -10,27 +10,37 @@ import yaml
 
 from quantfinance.data.b3.cotahist import load_cotahist, save_daily_history
 from quantfinance.workflows.features.indicators import enrich_dataframe
+from quantfinance.workflows.snapshot import snapshot_from_dataframe
+from quantfinance.reporting import summarise_snapshot, MarketSnapshot
 
 # Os arquivos COTAHIST devem ser baixados do portal oficial:
 # https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/
 # Salve os .ZIP correspondentes em data/raw/b3.
 RAW_DIR = Path("data/raw/b3")
 PROCESSED_DIR = Path("data/processed/b3")
-CONFIG_PATH = Path("config/carteira_b3.yaml")
+CONFIG_PATH = Path("config/tickets.yaml")
 CONSOLIDATED_EXCEL = PROCESSED_DIR / "b3_carteira.xlsx"
 
 
 def load_tickers_from_config(config_path: Path = CONFIG_PATH) -> list[str]:
     if not config_path.exists():
         raise FileNotFoundError(
-            f"Arquivo de configuração da carteira B3 não encontrado: {config_path}"
+            f"Arquivo de configuração da carteira não encontrado: {config_path}"
         )
     with config_path.open("r", encoding="utf-8") as handle:
-        data = yaml.safe_load(handle)
-    tickers = data.get("carteira", {}).get("tickers", [])
+        data = yaml.safe_load(handle) or {}
+
+    tickers = data.get("b3", {}).get("tickers")
+
+    # Retrocompatibilidade com o formato antigo (carteira_b3.yaml)
     if not tickers:
-        raise ValueError("Nenhum ticker definido em carteira_b3.yaml")
-    return tickers
+        tickers = data.get("carteira", {}).get("tickers")
+
+    if not tickers:
+        raise ValueError(
+            "Nenhum ticker definido na seção 'b3.tickers' do arquivo de carteira."
+        )
+    return list(dict.fromkeys(ticker.upper() for ticker in tickers))
 
 
 def iter_cotahist_files(raw_dir: Path = RAW_DIR) -> Iterable[Path]:
@@ -80,14 +90,15 @@ def run_b3_pipeline(
     tickers: Optional[Iterable[str]] = None,
     raw_dir: Path = RAW_DIR,
     output_dir: Path = PROCESSED_DIR,
-) -> None:
+    show_summary: bool = True,
+) -> dict[str, MarketSnapshot]:
     if tickers is None:
         tickers = load_tickers_from_config()
 
     archives = list(iter_cotahist_files(raw_dir))
     if not archives:
         print(f"Nenhum arquivo COTAHIST encontrado em {raw_dir}.")
-        return
+        return {}
 
     aggregated_frames: list[pd.DataFrame] = []
     for archive_path in archives:
@@ -97,10 +108,26 @@ def run_b3_pipeline(
 
     if not aggregated_frames:
         print("Nenhum dado processado.")
-        return
+        return {}
 
     combined = pd.concat(aggregated_frames, ignore_index=True)
     save_enriched_assets(combined, output_dir)
+    snapshots: dict[str, MarketSnapshot] = {}
+
+    for ticker, group in combined.groupby("Ticker"):
+        prepared = (
+            group.sort_values("Date")
+            .drop_duplicates(subset=["Date"], keep="last")
+            .reset_index(drop=True)
+        )
+        snapshots[ticker] = snapshot_from_dataframe(prepared)
+
+    if show_summary and snapshots:
+        print("\nResumo dos ativos B3:")
+        for ticker in sorted(snapshots):
+            print(f"\n{ticker}:\n{summarise_snapshot(snapshots[ticker])}")
+
+    return snapshots
 
 
 __all__ = [

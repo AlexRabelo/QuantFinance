@@ -14,14 +14,18 @@ from quantfinance.workflows import (
     save_portfolio_parquet,
 )
 
-CONFIG_PATH = Path("config/carteira_base.yaml")
+CONFIG_PATH = Path("config/tickets.yaml")
 OUTPUT_DIR = Path("data/processed/carteira_base")
 COMBINED_EXCEL = OUTPUT_DIR / "carteira_base.xlsx"
 
 
 def main() -> None:
     config = load_portfolio_config(CONFIG_PATH)
-    data_map, skipped = download_portfolio_data(config)
+    data_map, skipped = download_portfolio_data(
+        config,
+        existing_dir=OUTPUT_DIR,
+        max_workers=8,
+    )
 
     if not data_map:
         print("Nenhum ativo foi baixado. Verifique sua conexão e configuração.")

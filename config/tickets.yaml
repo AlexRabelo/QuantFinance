@@ -1,0 +1,331 @@
+# Universo único de ativos; alimenta tanto o Yahoo quanto o pipeline COTAHIST.
+portfolio:
+  name: Carteira_Base
+  defaults:
+    provider: yahoo
+    interval: 1d
+    start: '2023-01-01'
+    end: null
+  # Ativos baixados via Yahoo Finance (1d, auto_adjust=True)
+  assets:
+  - name: ABEV3
+    ticker: ABEV3.SA
+  - name: ALOS3
+    ticker: ALOS3.SA
+  - name: ANIM3
+    ticker: ANIM3.SA
+  - name: ASAI3
+    ticker: ASAI3.SA
+  - name: AURE3
+    ticker: AURE3.SA
+  - name: AZZA3
+    ticker: AZZA3.SA
+  - name: B3SA3
+    ticker: B3SA3.SA
+  - name: BBAS3
+    ticker: BBAS3.SA
+  - name: BBDC3
+    ticker: BBDC3.SA
+  - name: BBDC4
+    ticker: BBDC4.SA
+  - name: BBSE3
+    ticker: BBSE3.SA
+  - name: BEEF3
+    ticker: BEEF3.SA
+  - name: BOVA11
+    ticker: BOVA11.SA
+  - name: BPAC11
+    ticker: BPAC11.SA
+  - name: BRAP4
+    ticker: BRAP4.SA
+  - name: BRAV3
+    ticker: BRAV3.SA
+  - name: BRKM5
+    ticker: BRKM5.SA
+  - name: CEAB3
+    ticker: CEAB3.SA
+  - name: CMIG4
+    ticker: CMIG4.SA
+  - name: CMIN3
+    ticker: CMIN3.SA
+  - name: COGN3
+    ticker: COGN3.SA
+  - name: CPFE3
+    ticker: CPFE3.SA
+  - name: CPLE3
+    ticker: CPLE3.SA
+  - name: CPLE6
+    ticker: CPLE6.SA
+  - name: CSAN3
+    ticker: CSAN3.SA
+  - name: CSMG3
+    ticker: CSMG3.SA
+  - name: CSNA3
+    ticker: CSNA3.SA
+  - name: CURY3
+    ticker: CURY3.SA
+  - name: CVCB3
+    ticker: CVCB3.SA
+  - name: CXSE3
+    ticker: CXSE3.SA
+  - name: CYRE3
+    ticker: CYRE3.SA
+  - name: DIRR3
+    ticker: DIRR3.SA
+  - name: ECOR3
+    ticker: ECOR3.SA
+  - name: EGIE3
+    ticker: EGIE3.SA
+  - name: ELET3
+    ticker: ELET3.SA
+  - name: ELET6
+    ticker: ELET6.SA
+  - name: EMBR3
+    ticker: EMBR3.SA
+  - name: ENEV3
+    ticker: ENEV3.SA
+  - name: ENGI11
+    ticker: ENGI11.SA
+  - name: EQTL3
+    ticker: EQTL3.SA
+  - name: EZTC3
+    ticker: EZTC3.SA
+  - name: FLRY3
+    ticker: FLRY3.SA
+  - name: GGBR4
+    ticker: GGBR4.SA
+  - name: GGPS3
+    ticker: GGPS3.SA
+  - name: GMAT3
+    ticker: GMAT3.SA
+  - name: GOAU4
+    ticker: GOAU4.SA
+  - name: HAPV3
+    ticker: HAPV3.SA
+  - name: HASH11
+    ticker: HASH11.SA
+  - name: HYPE3
+    ticker: HYPE3.SA
+  - name: IGTI11
+    ticker: IGTI11.SA
+  - name: IMAB11
+    ticker: IMAB11.SA
+  - name: INTB3
+    ticker: INTB3.SA
+  - name: IRBR3
+    ticker: IRBR3.SA
+  - name: IRFM11
+    ticker: IRFM11.SA
+  - name: ISAE4
+    ticker: ISAE4.SA
+  - name: ITSA4
+    ticker: ITSA4.SA
+  - name: ITUB4
+    ticker: ITUB4.SA
+  - name: IVVB11
+    ticker: IVVB11.SA
+  - name: KLBN11
+    ticker: KLBN11.SA
+  - name: LREN3
+    ticker: LREN3.SA
+  - name: LWSA3
+    ticker: LWSA3.SA
+  - name: MBRF3
+    ticker: MBRF3.SA
+  - name: MGLU3
+    ticker: MGLU3.SA
+  - name: MOTV3
+    ticker: MOTV3.SA
+  - name: MOVI3
+    ticker: MOVI3.SA
+  - name: MRVE3
+    ticker: MRVE3.SA
+  - name: MULT3
+    ticker: MULT3.SA
+  - name: NATU3
+    ticker: NATU3.SA
+  - name: PCAR3
+    ticker: PCAR3.SA
+  - name: PETR3
+    ticker: PETR3.SA
+  - name: PETR4
+    ticker: PETR4.SA
+  - name: PETZ3
+    ticker: PETZ3.SA
+  - name: POMO4
+    ticker: POMO4.SA
+  - name: PRIO3
+    ticker: PRIO3.SA
+  - name: PSSA3
+    ticker: PSSA3.SA
+  - name: RADL3
+    ticker: RADL3.SA
+  - name: RAIL3
+    ticker: RAIL3.SA
+  - name: RAIZ4
+    ticker: RAIZ4.SA
+  - name: RAPT4
+    ticker: RAPT4.SA
+  - name: RDOR3
+    ticker: RDOR3.SA
+  - name: RECV3
+    ticker: RECV3.SA
+  - name: RENT3
+    ticker: RENT3.SA
+  - name: SANB11
+    ticker: SANB11.SA
+  - name: SAPR11
+    ticker: SAPR11.SA
+  - name: SBSP3
+    ticker: SBSP3.SA
+  - name: SLCE3
+    ticker: SLCE3.SA
+  - name: SMAL11
+    ticker: SMAL11.SA
+  - name: SMFT3
+    ticker: SMFT3.SA
+  - name: SMTO3
+    ticker: SMTO3.SA
+  - name: SRNA3
+    ticker: SRNA3.SA
+  - name: SUZB3
+    ticker: SUZB3.SA
+  - name: TAEE11
+    ticker: TAEE11.SA
+  - name: TEND3
+    ticker: TEND3.SA
+  - name: TIMS3
+    ticker: TIMS3.SA
+  - name: TOTS3
+    ticker: TOTS3.SA
+  - name: UGPA3
+    ticker: UGPA3.SA
+  - name: USDB11
+    ticker: USDB11.SA
+  - name: USIM5
+    ticker: USIM5.SA
+  - name: VALE3
+    ticker: VALE3.SA
+  - name: VAMO3
+    ticker: VAMO3.SA
+  - name: VBBR3
+    ticker: VBBR3.SA
+  - name: VIVA3
+    ticker: VIVA3.SA
+  - name: VIVT3
+    ticker: VIVT3.SA
+  - name: WEGE3
+    ticker: WEGE3.SA
+  - name: XFIX11
+    ticker: XFIX11.SA
+  - name: YDUQ3
+    ticker: YDUQ3.SA
+b3:
+  # Os mesmos tickers serão buscados nos arquivos COTAHIST da B3.
+  tickers:
+  - ABEV3
+  - ALOS3
+  - ANIM3
+  - ASAI3
+  - AURE3
+  - AZZA3
+  - B3SA3
+  - BBAS3
+  - BBDC3
+  - BBDC4
+  - BBSE3
+  - BEEF3
+  - BOVA11
+  - BPAC11
+  - BRAP4
+  - BRAV3
+  - BRKM5
+  - CEAB3
+  - CMIG4
+  - CMIN3
+  - COGN3
+  - CPFE3
+  - CPLE3
+  - CPLE6
+  - CSAN3
+  - CSMG3
+  - CSNA3
+  - CURY3
+  - CVCB3
+  - CXSE3
+  - CYRE3
+  - DIRR3
+  - ECOR3
+  - EGIE3
+  - ELET3
+  - ELET6
+  - EMBR3
+  - ENEV3
+  - ENGI11
+  - EQTL3
+  - EZTC3
+  - FLRY3
+  - GGBR4
+  - GGPS3
+  - GMAT3
+  - GOAU4
+  - HAPV3
+  - HASH11
+  - HYPE3
+  - IGTI11
+  - IMAB11
+  - INTB3
+  - IRBR3
+  - IRFM11
+  - ISAE4
+  - ITSA4
+  - ITUB4
+  - IVVB11
+  - KLBN11
+  - LREN3
+  - LWSA3
+  - MBRF3
+  - MGLU3
+  - MOTV3
+  - MOVI3
+  - MRVE3
+  - MULT3
+  - NATU3
+  - PCAR3
+  - PETR3
+  - PETR4
+  - PETZ3
+  - POMO4
+  - PRIO3
+  - PSSA3
+  - RADL3
+  - RAIL3
+  - RAIZ4
+  - RAPT4
+  - RDOR3
+  - RECV3
+  - RENT3
+  - SANB11
+  - SAPR11
+  - SBSP3
+  - SLCE3
+  - SMAL11
+  - SMFT3
+  - SMTO3
+  - SRNA3
+  - SUZB3
+  - TAEE11
+  - TEND3
+  - TIMS3
+  - TOTS3
+  - UGPA3
+  - USDB11
+  - USIM5
+  - VALE3
+  - VAMO3
+  - VBBR3
+  - VIVA3
+  - VIVT3
+  - WEGE3
+  - XFIX11
+  - YDUQ3

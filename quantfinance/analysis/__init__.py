@@ -9,6 +9,7 @@ from .levels import (
 from .fibonacci import FibonacciLevels, compute_retracements
 from .divergence import DivergenceSignal, detect_rsi_divergences
 from .trend import BreakoutSignal, TrendSnapshot, breakout_signals, trend_strength
+from .analytics import compute_momentum_scores, compute_indicator_snapshot, MomentumConfig
 
 __all__ = [
     "LevelDetail",
@@ -23,4 +24,7 @@ __all__ = [
     "TrendSnapshot",
     "breakout_signals",
     "trend_strength",
+    "compute_momentum_scores",
+    "compute_indicator_snapshot",
+    "MomentumConfig",
 ]

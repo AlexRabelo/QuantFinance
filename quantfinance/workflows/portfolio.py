@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import pandas as pd
 import yaml
 
@@ -72,7 +74,11 @@ def load_portfolio_config(path: str | Path) -> PortfolioConfig:
     return PortfolioConfig(name=name, assets=assets, defaults=defaults)
 
 
-def _download_asset(asset: AssetConfig) -> pd.DataFrame:
+def _download_asset(
+    asset: AssetConfig,
+    *,
+    start_override: Optional[str] = None,
+) -> pd.DataFrame:
     """Baixa os dados para um ativo conforme o provider configurado."""
     if asset.provider not in SUPPORTED_PROVIDERS:
         raise UnsupportedProviderError(
@@ -82,9 +88,10 @@ def _download_asset(asset: AssetConfig) -> pd.DataFrame:
     if asset.provider == "yahoo":
         if not asset.ticker:
             raise ValueError(f"Ticker ausente para o ativo '{asset.name}'.")
+        start = start_override or asset.start
         return download_history(
             asset.ticker,
-            start=asset.start,
+            start=start,
             end=asset.end,
             interval=asset.interval or "1d",
         )
@@ -94,21 +101,88 @@ def _download_asset(asset: AssetConfig) -> pd.DataFrame:
     )
 
 
-def download_portfolio_data(config: PortfolioConfig) -> Tuple[Dict[str, pd.DataFrame], List[str]]:
+def download_portfolio_data(
+    config: PortfolioConfig,
+    *,
+    existing_dir: Optional[Path] = None,
+    max_workers: int = 4,
+) -> Tuple[Dict[str, pd.DataFrame], List[str]]:
     """Baixa os dados de todos os ativos suportados.
+
+    Quando ``existing_dir`` é informado, realiza merge incremental com os
+    Parquets já persistidos (ignorando datas duplicadas).
 
     Retorna um dicionário nome -> DataFrame e lista de ativos ignorados.
     """
     data_map: Dict[str, pd.DataFrame] = {}
     skipped: List[str] = []
-    for asset in config.assets:
+
+    existing_dir = Path(existing_dir) if existing_dir else None
+
+    def _load_existing(name: str) -> Optional[pd.DataFrame]:
+        if not existing_dir:
+            return None
+        file_path = existing_dir / f"{name}_raw.parquet"
+        if not file_path.exists():
+            return None
         try:
-            frame = _download_asset(asset)
-            data_map[asset.name] = frame
-        except UnsupportedProviderError:
-            skipped.append(asset.name)
-        except Exception as exc:  # pragma: no cover - log simples para debug manual
-            skipped.append(f"{asset.name} (erro: {exc})")
+            existing = pd.read_parquet(file_path)
+            if "Date" in existing.columns:
+                existing["Date"] = pd.to_datetime(existing["Date"], errors="coerce")
+            return existing.dropna(subset=["Date"]) if "Date" in existing.columns else existing
+        except Exception:
+            return None
+
+    def _merge_frames(existing: Optional[pd.DataFrame], new: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+        if existing is None or existing.empty:
+            combined = new
+        elif new is None or new.empty:
+            combined = existing
+        else:
+            combined = pd.concat([existing, new], ignore_index=True)
+        if combined is None or combined.empty:
+            return combined
+        if "Date" in combined.columns:
+            combined["Date"] = pd.to_datetime(combined["Date"], errors="coerce")
+            combined = (
+                combined.dropna(subset=["Date"])
+                .drop_duplicates(subset=["Date"], keep="last")
+                .sort_values("Date")
+                .reset_index(drop=True)
+            )
+        return combined
+
+    def _task(asset: AssetConfig) -> Tuple[str, pd.DataFrame]:
+        existing_frame = _load_existing(asset.name)
+        start_override = None
+        if existing_frame is not None and not existing_frame.empty and "Date" in existing_frame.columns:
+            last_date = pd.to_datetime(existing_frame["Date"].max())
+            if pd.notna(last_date):
+                start_override = (last_date + pd.Timedelta(days=1)).date().isoformat()
+
+        try:
+            frame = _download_asset(asset, start_override=start_override)
+        except UnsupportedProviderError as exc:
+            raise exc
+        except ValueError:
+            # Nenhum dado novo disponível; manter o existente
+            frame = None
+        combined = _merge_frames(existing_frame, frame)
+        if combined is None or combined.empty:
+            raise ValueError("Nenhum dado disponível para o ativo")
+        return asset.name, combined
+
+    with ThreadPoolExecutor(max_workers=max_workers or 1) as executor:
+        future_map = {executor.submit(_task, asset): asset for asset in config.assets}
+        for future in as_completed(future_map):
+            asset = future_map[future]
+            try:
+                name, frame = future.result()
+                data_map[name] = frame
+            except UnsupportedProviderError:
+                skipped.append(asset.name)
+            except Exception as exc:  # pragma: no cover - log simples para debug manual
+                skipped.append(f"{asset.name} (erro: {exc})")
     return data_map, skipped
 
 

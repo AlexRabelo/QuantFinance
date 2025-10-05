@@ -11,7 +11,7 @@ Ferramentas para transformar os arquivos oficiais COTAHIST da B3 em uma base de 
 ## Workflow recomendado
 
 1. Baixe `COTAHIST_AAAAA.ZIP` no portal de séries históricas da B3 (https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/) e coloque em `data/raw/b3/`.
-2. Ajuste `config/carteira_b3.yaml` com os tickers desejados (por exemplo, carteira personalizada ou composição do índice).
+2. Ajuste a seção `b3.tickers` de `config/tickets.yaml` com os ativos desejados (por exemplo, carteira personalizada, composição do IBrX-100 ou ETFs/macros complementares presentes nos arquivos COTAHIST).
 3. Execute `python examples/b3_runner.py` com `PYTHONPATH` apontando para o projeto.
 4. Os resultados ficam em `data/processed/b3/` (`*_raw.parquet`, `*_enriched.parquet`) e `data/processed/b3/excel/` (planilhas enriquecidas por ticker).
 

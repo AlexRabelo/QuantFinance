@@ -13,6 +13,7 @@ from .portfolio import (
     generate_portfolio_snapshots,
 )
 from .b3 import run_b3_pipeline, load_tickers_from_config as load_b3_tickers
+from .audit import audit_yahoo_assets, audit_b3_tickers
 
 __all__ = [
     "snapshot_from_dataframe",
@@ -29,4 +30,6 @@ __all__ = [
     "generate_portfolio_snapshots",
     "run_b3_pipeline",
     "load_b3_tickers",
+    "audit_yahoo_assets",
+    "audit_b3_tickers",
 ]
