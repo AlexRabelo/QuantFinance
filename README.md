@@ -93,6 +93,7 @@ Cada pasta relevante possui um `README.md` próprio descrevendo o fluxo local.
    python manage.py snapshot --source b3
    ```
    O comando procura os arquivos `*_enriched.parquet` nas pastas `data/processed/carteira_base` (Yahoo) ou `data/processed/b3` (B3) e imprime o resumo técnico dos ativos solicitados.
+   O relatório agora inclui classificação de tendência diária/semanal (ex.: "alta forte", "baixa moderada") considerando o empilhamento das EMAs e a posição em relação à SMA200.
 
 8. **Auditar cobertura e qualidade das séries**
  ```bash
@@ -118,8 +119,25 @@ Cada pasta relevante possui um `README.md` próprio descrevendo o fluxo local.
 - `quantfinance/data/yahoo` – downloads em lote, exportação para Parquet e cache do Yahoo Finance
 - `quantfinance/data/b3` – parsers dos arquivos oficiais COTAHIST e persistência para um data lake offline
 - `quantfinance/data/profit` – leitura de workbooks do Profit Pro com uma aba por ativo
+- `setups/` – catálogo de setups técnicos (médias, RSI, trend following) para documentar hipóteses antes de automatizar backtests/notebooks.
 
 Consulte os README de cada pasta para instruções detalhadas, pressupostos e dicas.
+
+---
+
+## Conceitos Técnicos (evolução atual)
+
+Estamos organizando os conceitos financeiros e de programação em ordem crescente:
+
+- **Médias móveis**: já calculamos SMA/EMA de 9, 21, 72 e 200 períodos. As curtas (9/21) medem ritmo de swing, a 72 reflete ~3 meses e a 200 sinaliza regime de longo prazo.
+- **Classificação de tendência**: `trend_strength` avalia inclinação das EMAs e o “stack”. O snapshot traduz isso em “alta/baixa moderada/forte” tanto para o diário quanto para o semanal, usando também a SMA200 como referência.
+- **Momentum e divergências**: monitoramos divergências preço × RSI/OBV/MACD em janela curta (15 dias) e calculamos rankings de retornos acumulados (21/63/126 dias) para setups de continuação.
+- **Volume e volatilidade**: o snapshot aponta se o volume atual está acima/abaixo da média de 20 dias, interpreta o estocástico lento (%K/%D) e classifica o ATR normalizado (baixa/moderada/elevada), deixando claro se o movimento tem “combustível”, se há ritmo ou excesso.
+- **Níveis de preço**: combinamos suportes/resistências diários e semanais, números redondos e swings anteriores, além de retrações/extensões de Fibonacci para mapear alvos.
+- **Contexto macro**: calculamos a correlação de 60 dias com ativos de referência (USD/BRL, USDB11, IVVB11, Brent), incorporando ao relatório como o ticker se comporta em relação ao dólar/mercado externo.
+- **Auditoria e alertas**: `manage.py audit` gera alertas JSON quando há séries ausentes ou gaps superiores aos limites, permitindo monitoramento diário automatizado.
+
+À medida que evoluirmos (ex.: volatilidade implícita, correlações, backtesting), a documentação será estendida seguindo essa progressão didática.
 
 ---
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, Mapping, Tuple
 
 import numpy as np
 import pandas as pd
@@ -71,6 +71,42 @@ def trend_strength(
         crossover = "mixed"
 
     return TrendSnapshot(direction, slope_short, slope_medium, slope_long, crossover)
+
+
+def trend_by_timeframe(
+    close: pd.Series,
+    frequencies: Mapping[str, str | None] | None = None,
+    short_window: int = 9,
+    medium_window: int = 21,
+    long_window: int = 72,
+) -> Dict[str, TrendSnapshot]:
+    """Calcula tendência em múltiplos timeframes a partir da série diária.
+
+    ``frequencies`` mapeia o nome do timeframe para a frequência de resample do
+    pandas (ex.: ``{"daily": None, "weekly": "W"}``). ``None`` ou ``"D"``
+    mantêm a série original.
+    """
+
+    close = close.dropna().sort_index()
+    freq_map = frequencies or {"daily": None, "weekly": "W"}
+    results: Dict[str, TrendSnapshot] = {}
+
+    for name, freq in freq_map.items():
+        if freq in (None, "", "D"):
+            series = close
+        else:
+            series = close.resample(freq).last()
+        series = series.dropna()
+        if len(series) < max(short_window, medium_window, long_window):
+            continue
+        results[name] = trend_strength(
+            series,
+            short_window=short_window,
+            medium_window=medium_window,
+            long_window=long_window,
+        )
+
+    return results
 
 
 def breakout_signals(

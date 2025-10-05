@@ -31,10 +31,17 @@ def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def snapshot_from_dataframe(df: pd.DataFrame) -> MarketSnapshot:
+def snapshot_from_dataframe(
+    df: pd.DataFrame,
+    *,
+    macro_context: Optional[Dict[str, float]] = None,
+) -> MarketSnapshot:
     """Recebe um DataFrame padronizado e devolve o snapshot consolidado."""
     prepared = _prepare_dataframe(df)
-    return build_market_snapshot(prepared)
+    snapshot = build_market_snapshot(prepared)
+    if macro_context:
+        snapshot.macro_context = macro_context
+    return snapshot
 
 
 def snapshot_from_excel(

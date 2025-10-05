@@ -12,8 +12,10 @@ from quantfinance.indicators import (
     bollinger_bands,
     ema,
     macd,
+    on_balance_volume,
     rsi,
     sma,
+    stochastic_oscillator,
 )
 
 
@@ -24,10 +26,15 @@ def _calc_basic_indicators(df: pd.DataFrame) -> pd.DataFrame:
     enriched["SMA_9"] = sma(close, 9)
     enriched["SMA_21"] = sma(close, 21)
     enriched["SMA_72"] = sma(close, 72)
+    enriched["SMA_200"] = sma(close, 200)
 
     enriched["EMA_9"] = ema(close, 9)
     enriched["EMA_21"] = ema(close, 21)
     enriched["EMA_72"] = ema(close, 72)
+    enriched["EMA_200"] = ema(close, 200)
+
+    enriched["Above_SMA_200"] = enriched["Close"] > enriched["SMA_200"]
+    enriched["Above_EMA_200"] = enriched["Close"] > enriched["EMA_200"]
 
     enriched["RSI_14"] = rsi(close, 14)
 
@@ -40,6 +47,16 @@ def _calc_basic_indicators(df: pd.DataFrame) -> pd.DataFrame:
         enriched[f"BB_Middle_{suffix}"] = bb["MiddleBand"]
         enriched[f"BB_Upper_{suffix}"] = bb["UpperBand"]
         enriched[f"BB_Lower_{suffix}"] = bb["LowerBand"]
+
+    if {"High", "Low"}.issubset(enriched.columns):
+        stoch = stochastic_oscillator(
+            enriched["High"],
+            enriched["Low"],
+            close,
+            window=14,
+        )
+        enriched["Stoch_%K_14"] = stoch["%K"]
+        enriched["Stoch_%D_14"] = stoch["%D"]
 
     return enriched
 
@@ -100,6 +117,31 @@ def _calc_returns(df: pd.DataFrame) -> pd.DataFrame:
     return enriched
 
 
+def _calc_volume_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    enriched = df.copy()
+    if "Volume" not in enriched.columns:
+        return enriched
+    volume = enriched["Volume"].astype(float)
+    vol_ma20 = volume.rolling(window=20, min_periods=1).mean()
+    enriched["Volume_MA20"] = vol_ma20
+    with np.errstate(divide="ignore", invalid="ignore"):
+        enriched["Volume_Ratio"] = np.where(vol_ma20 > 0, volume / vol_ma20, np.nan)
+    enriched["OBV"] = on_balance_volume(
+        enriched["Close"],
+        volume,
+    )
+    return enriched
+
+
+def _calc_volatility_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    enriched = df.copy()
+    if "ATR_14" in enriched.columns and "Close" in enriched.columns:
+        close = enriched["Close"].replace(0, np.nan).astype(float)
+        atr_norm = enriched["ATR_14"] / close
+        enriched["ATR_Pct_14"] = atr_norm * 100.0
+    return enriched
+
+
 def enrich_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if "Date" not in df.columns:
         raise ValueError("DataFrame precisa incluir coluna 'Date' para enriquecer.")
@@ -108,4 +150,6 @@ def enrich_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     enriched = _calc_extrema_flags(enriched)
     enriched = _calc_52w_metrics(enriched)
     enriched = _calc_returns(enriched)
+    enriched = _calc_volume_metrics(enriched)
+    enriched = _calc_volatility_metrics(enriched)
     return enriched

@@ -23,11 +23,13 @@ from quantfinance.workflows import (
     audit_b3_tickers,
 )
 from quantfinance.workflows.alerts import build_alert_report
+from quantfinance.setups import evaluate_setups
 
 DEFAULT_YAHOO_CONFIG = Path("config/tickets.yaml")
 YAHOO_PROCESSED_DIR = Path("data/processed/carteira_base")
 B3_PROCESSED_DIR = Path("data/processed/b3")
 ENRICHED_SUFFIX = "_enriched"
+MACRO_SERIES = ["USD_BRL_SPOT", "USDB11", "IVVB11", "BRENT_OIL"]
 
 app = typer.Typer(help="Gerenciador de rotinas QuantFinance.")
 
@@ -90,6 +92,42 @@ def _resolve_requested(
         name_key = matched_entry[0].upper()
         resolved[name_key] = matched_entry
     return resolved
+
+
+def _compute_returns(df: pd.DataFrame) -> pd.Series:
+    if "Date" not in df.columns or "Close" not in df.columns:
+        return pd.Series(dtype=float)
+    data = df.copy()
+    data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+    data = data.dropna(subset=["Date", "Close"]).sort_values("Date")
+    returns = data["Close"].astype(float).pct_change()
+    returns.index = data["Date"].values
+    return returns.dropna()
+
+
+def _compute_macro_context(asset_df: pd.DataFrame) -> Dict[str, float]:
+    asset_returns = _compute_returns(asset_df)
+    if asset_returns.empty:
+        return {}
+    context: Dict[str, float] = {}
+    for macro in MACRO_SERIES:
+        macro_path = YAHOO_PROCESSED_DIR / f"{macro}_raw.parquet"
+        if not macro_path.exists():
+            continue
+        macro_df = pd.read_parquet(macro_path)
+        macro_returns = _compute_returns(macro_df)
+        if macro_returns.empty:
+            continue
+        combined = pd.concat([asset_returns, macro_returns], axis=1, join="inner").dropna()
+        if combined.empty:
+            continue
+        window = combined.tail(60)
+        if window.empty:
+            continue
+        corr = window.iloc[:, 0].corr(window.iloc[:, 1])
+        if pd.notna(corr):
+            context[macro] = float(corr)
+    return context
 
 
 @app.command()
@@ -187,9 +225,19 @@ def snapshot(
         except FileNotFoundError as exc:
             typer.echo(f"Arquivo não encontrado: {file_path}")
             raise typer.Exit(code=1) from exc
-        snapshot_obj = snapshot_from_dataframe(df)
+        macro_context = _compute_macro_context(df)
+        snapshot_obj = snapshot_from_dataframe(df, macro_context=macro_context)
         typer.echo(f"\n{display_name}:")
         typer.echo(summarise_snapshot(snapshot_obj))
+
+        setups = evaluate_setups(snapshot_obj, df)
+        active_setups = [setup for setup in setups if setup.active]
+        if active_setups:
+            typer.echo("\nSetups sugeridos:")
+            for setup in active_setups:
+                typer.echo(f"  • {setup.name}: {setup.details}")
+        else:
+            typer.echo("\nSem setups sugeridos com as condições atuais.")
 
 
 @app.command()
