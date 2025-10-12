@@ -1,0 +1,11 @@
+def enrich_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    if "Date" not in df.columns:
+        raise ValueError("DataFrame precisa incluir coluna 'Date' para enriquecer.")
+
+    # Sanitiza colunas para evitar retornos DataFrame em seleções por nome
+    df = _sanitize_price_frame(df)
+
+    enriched = _calc_basic_indicators(df)
+    enriched = _calc_extrema_flags(enriched)
+    enriched = _calc_52w_metrics(enriched)
+    enriched = _calc_returns(enriched)

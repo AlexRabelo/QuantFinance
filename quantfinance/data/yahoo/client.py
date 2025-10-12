@@ -38,14 +38,29 @@ def download_history(
     auto_adjust: bool = True,
 ) -> pd.DataFrame:
     """Baixa candles históricos e padroniza as colunas."""
-    data = yf.download(
-        ticker,
-        start=start,
-        end=end,
-        interval=interval,
-        auto_adjust=auto_adjust,
-        progress=False,
-    )
+    def _download_via_download() -> pd.DataFrame:
+        return yf.download(
+            ticker,
+            start=start,
+            end=end,
+            interval=interval,
+            auto_adjust=auto_adjust,
+            progress=False,
+        )
+
+    def _download_via_ticker() -> pd.DataFrame:
+        t = yf.Ticker(ticker)
+        return t.history(start=start, end=end, interval=interval, auto_adjust=auto_adjust)
+
+    try:
+        data = _download_via_download()
+    except Exception as exc:
+        # Fallback conhecido para contornar erros intermitentes do yfinance como
+        # "dictionary changed size during iteration"
+        try:
+            data = _download_via_ticker()
+        except Exception:
+            raise exc
     if data.empty:
         raise ValueError(f"O Yahoo Finance não retornou dados para {ticker}")
 

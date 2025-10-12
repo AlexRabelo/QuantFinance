@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Callable
 
 import pandas as pd
 import yaml
 
-from quantfinance.data.b3.cotahist import load_cotahist, save_daily_history
+# Importaçã​o opcional dos parsers da B3 para não quebrar em ambientes mínimos de testes
+try:  # pragma: no cover - apenas protege import opcional
+    from quantfinance.data.b3.cotahist import load_cotahist as _load_cotahist  # type: ignore
+except Exception:  # noqa: BLE001 - amplo de propósito para ambientes sem o módulo
+    _load_cotahist = None  # type: ignore
 from quantfinance.workflows.features.indicators import enrich_dataframe
 from quantfinance.workflows.snapshot import snapshot_from_dataframe
 from quantfinance.reporting import summarise_snapshot, MarketSnapshot
@@ -52,12 +56,51 @@ def process_cotahist_archive(
     tickers: Optional[Iterable[str]] = None,
 ) -> pd.DataFrame:
     print(f"Processando {archive_path.name}...")
-    return load_cotahist(archive_path, tickers=tickers)
+    if _load_cotahist is None:
+        raise ImportError(
+            "Leitor de COTAHIST indisponível. Certifique-se de ter o módulo "
+            "'quantfinance.data.b3.cotahist' ou evite chamar este workflow no ambiente atual."
+        )
+    return _load_cotahist(archive_path, tickers=tickers)
 
 
 def persist_raw_history(df: pd.DataFrame, output_dir: Path = PROCESSED_DIR) -> None:
+    """Persiste histórico diário por ticker de forma incremental.
+
+    - Cria um arquivo Parquet por ticker em ``output_dir`` com nome ``{TICKER}.parquet``.
+    - Faz merge com arquivo existente, mantendo apenas a última ocorrência por data.
+    - Garante ordenação por ``Date``.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
-    save_daily_history(df, output_dir)
+
+    if df.empty:
+        return
+
+    required = {"Date", "Ticker"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Colunas obrigatórias ausentes: {sorted(missing)}")
+
+    df = df.copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date", "Ticker"])  # garante integridade mínima
+
+    for ticker, group in df.groupby("Ticker"):
+        file_path = output_dir / f"{ticker}.parquet"
+        if file_path.exists():
+            try:
+                existing = pd.read_parquet(file_path)
+            except Exception:
+                existing = pd.DataFrame()
+            combined = pd.concat([existing, group], ignore_index=True)
+        else:
+            combined = group
+
+        combined["Date"] = pd.to_datetime(combined["Date"], errors="coerce")
+        combined = (
+            combined.dropna(subset=["Date"]).drop_duplicates(subset=["Date"], keep="last").sort_values("Date").reset_index(drop=True)
+        )
+        combined.to_parquet(file_path, index=False)
 
 
 def save_enriched_assets(df: pd.DataFrame, output_dir: Path = PROCESSED_DIR) -> None:

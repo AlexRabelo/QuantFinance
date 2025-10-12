@@ -19,9 +19,49 @@ from quantfinance.indicators import (
 )
 
 
+def _ensure_series(df: pd.DataFrame, name: str) -> pd.Series:
+    """Garante que df[name] seja uma Série numérica (não um DataFrame)."""
+    col = df[name]
+    if isinstance(col, pd.DataFrame):
+        col = col.iloc[:, 0]
+    return pd.to_numeric(col, errors="coerce")
+
+
+def _sanitize_price_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Normaliza o DataFrame de entrada para evitar problemas de colunas duplicadas.
+
+    - Achata MultiIndex de colunas, caso exista
+    - Coalesce colunas duplicadas chave (Open/High/Low/Close/Volume) em uma única Série
+    - Remove colunas duplicadas mantendo a primeira ocorrência
+    """
+    data = df.copy()
+    # Flatten MultiIndex if present
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = [str(col[0] if col[0] else col[1]) for col in data.columns]
+
+    def _coalesce(name: str) -> None:
+        mask = data.columns == name
+        count = int(mask.sum())
+        if count <= 1:
+            return
+        subset = data.loc[:, mask]
+        # Converte todas para numérico e escolhe o maior valor por linha (corrige
+        # séries duplicadas com escala diferente, p.ex. 34 vs 137)
+        numeric_subset = subset.apply(pd.to_numeric, errors="coerce")
+        data[name] = numeric_subset.max(axis=1)
+
+    for key in ("Open", "High", "Low", "Close", "Volume"):
+        if key in data.columns:
+            _coalesce(key)
+
+    # Remove duplicated columns, keep the first occurrence
+    data = data.loc[:, ~data.columns.duplicated()]
+    return data
+
+
 def _calc_basic_indicators(df: pd.DataFrame) -> pd.DataFrame:
     enriched = df.copy()
-    close = enriched["Close"]
+    close = _ensure_series(enriched, "Close")
 
     enriched["SMA_9"] = sma(close, 9)
     enriched["SMA_21"] = sma(close, 21)
@@ -49,12 +89,9 @@ def _calc_basic_indicators(df: pd.DataFrame) -> pd.DataFrame:
         enriched[f"BB_Lower_{suffix}"] = bb["LowerBand"]
 
     if {"High", "Low"}.issubset(enriched.columns):
-        stoch = stochastic_oscillator(
-            enriched["High"],
-            enriched["Low"],
-            close,
-            window=14,
-        )
+        high = _ensure_series(enriched, "High")
+        low = _ensure_series(enriched, "Low")
+        stoch = stochastic_oscillator(high, low, close, window=14)
         enriched["Stoch_%K_14"] = stoch["%K"]
         enriched["Stoch_%D_14"] = stoch["%D"]
 
@@ -82,8 +119,18 @@ def _calc_extrema_flags(df: pd.DataFrame, order: int = 3) -> pd.DataFrame:
 
 def _calc_52w_metrics(df: pd.DataFrame) -> pd.DataFrame:
     enriched = df.copy()
+    # Garante datas timezone-naive para evitar erros de DST em resample
+    if "Date" in enriched.columns:
+        try:
+            dates = pd.to_datetime(enriched["Date"], errors="coerce", utc=True)
+            dates = dates.dt.tz_convert(None)
+            enriched["Date"] = dates
+        except Exception:
+            # fallback conservador sem alterar a coluna
+            pass
     data = enriched.set_index("Date")
-    weekly = data["Close"].resample("W").agg(["min", "max"])
+    close = _ensure_series(data, "Close")
+    weekly = close.resample("W").agg(["min", "max"])
     rolling_min = weekly["min"].rolling(window=52, min_periods=1).min()
     rolling_max = weekly["max"].rolling(window=52, min_periods=1).max()
 
@@ -96,14 +143,14 @@ def _calc_52w_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
 def _calc_returns(df: pd.DataFrame) -> pd.DataFrame:
     enriched = df.copy()
-    enriched["Return_Daily"] = enriched["Close"].pct_change()
-
-    close = enriched["Close"].replace(0, np.nan)
+    close = _ensure_series(enriched, "Close")
+    enriched["Return_Daily"] = close.pct_change()
+    close = close.replace(0, np.nan)
     enriched["Return_Log"] = np.log(close / close.shift())
 
-    high = enriched.get("High", enriched["Close"])
-    low = enriched.get("Low", enriched["Close"])
-    close_prev = enriched["Close"].shift()
+    high = _ensure_series(enriched, "High") if "High" in enriched.columns else close
+    low = _ensure_series(enriched, "Low") if "Low" in enriched.columns else close
+    close_prev = close.shift()
     tr_components = pd.concat(
         [
             high - low,
@@ -121,7 +168,7 @@ def _calc_volume_metrics(df: pd.DataFrame) -> pd.DataFrame:
     enriched = df.copy()
     if "Volume" not in enriched.columns:
         return enriched
-    volume = enriched["Volume"].astype(float)
+    volume = _ensure_series(enriched, "Volume").astype(float)
     vol_ma20 = volume.rolling(window=20, min_periods=1).mean()
     enriched["Volume_MA20"] = vol_ma20
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -136,7 +183,7 @@ def _calc_volume_metrics(df: pd.DataFrame) -> pd.DataFrame:
 def _calc_volatility_metrics(df: pd.DataFrame) -> pd.DataFrame:
     enriched = df.copy()
     if "ATR_14" in enriched.columns and "Close" in enriched.columns:
-        close = enriched["Close"].replace(0, np.nan).astype(float)
+        close = _ensure_series(enriched, "Close").replace(0, np.nan).astype(float)
         atr_norm = enriched["ATR_14"] / close
         enriched["ATR_Pct_14"] = atr_norm * 100.0
     return enriched
@@ -145,6 +192,9 @@ def _calc_volatility_metrics(df: pd.DataFrame) -> pd.DataFrame:
 def enrich_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if "Date" not in df.columns:
         raise ValueError("DataFrame precisa incluir coluna 'Date' para enriquecer.")
+
+    # Sanitiza colunas para evitar retornos DataFrame em seleções por nome
+    df = _sanitize_price_frame(df)
 
     enriched = _calc_basic_indicators(df)
     enriched = _calc_extrema_flags(enriched)

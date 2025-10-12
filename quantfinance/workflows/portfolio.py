@@ -11,8 +11,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 import yaml
 
-from quantfinance.data.yahoo import download_history
 from quantfinance.workflows.features.indicators import enrich_dataframe
+from quantfinance.utils.diagnostics import coalesce_ohlcv, has_duplicate_columns
 from quantfinance.workflows.snapshot import snapshot_from_dataframe
 
 SUPPORTED_PROVIDERS = {"yahoo"}
@@ -89,11 +89,15 @@ def _download_asset(
         if not asset.ticker:
             raise ValueError(f"Ticker ausente para o ativo '{asset.name}'.")
         start = start_override or asset.start
+        # Importa de forma tardia para evitar falhas de import em ambientes mínimos de teste
+        from quantfinance.data.yahoo import download_history  # type: ignore
+
         return download_history(
             asset.ticker,
             start=start,
             end=asset.end,
             interval=asset.interval or "1d",
+            auto_adjust=True,  # usa preços ajustados (splits/dividendos) para evitar distorções
         )
 
     raise UnsupportedProviderError(
@@ -140,10 +144,19 @@ def download_portfolio_data(
             combined = existing
         else:
             combined = pd.concat([existing, new], ignore_index=True)
+        # Saneia colunas duplicadas (OHLCV) e flatten, se necessário
+        if combined is not None:
+            try:
+                fixed, _ = coalesce_ohlcv(combined)
+                combined = fixed
+            except Exception:
+                pass
         if combined is None or combined.empty:
             return combined
         if "Date" in combined.columns:
-            combined["Date"] = pd.to_datetime(combined["Date"], errors="coerce")
+            # Evita SettingWithCopyWarning garantindo cópia própria
+            combined = combined.copy()
+            combined.loc[:, "Date"] = pd.to_datetime(combined["Date"], errors="coerce")
             combined = (
                 combined.dropna(subset=["Date"])
                 .drop_duplicates(subset=["Date"], keep="last")
@@ -203,6 +216,16 @@ def save_portfolio_parquet(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     for name, frame in data_map.items():
+        # Saneia possíveis duplicatas de colunas antes de salvar
+        try:
+            fixed, _ = coalesce_ohlcv(frame)
+            frame = fixed
+        except Exception:
+            # fallback: remove colunas duplicadas mantendo a primeira
+            try:
+                frame = frame.loc[:, ~frame.columns.duplicated()]
+            except Exception:
+                pass
         suffix_part = f"_{suffix}" if suffix else ""
         file_path = output_dir / f"{name}{suffix_part}.parquet"
         frame.to_parquet(file_path, index=False)

@@ -4,7 +4,7 @@ portfolio:
   defaults:
     provider: yahoo
     interval: 1d
-    start: '2023-01-01'
+    start: '2015-01-01'  # >=10 anos de histórico
     end: null
   # Ativos baixados via Yahoo Finance (1d, auto_adjust=True)
   assets:

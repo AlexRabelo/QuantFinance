@@ -103,6 +103,22 @@ def _validate_input(df: pd.DataFrame) -> pd.DataFrame:
     return data.dropna(subset=["Date"]).sort_values("Date").set_index("Date")
 
 
+def _ensure_series(df: pd.DataFrame, name: str) -> pd.Series:
+    """Garante que uma coluna possivelmente duplicada vire uma única Série numérica.
+
+    Em alguns cenários (ex.: DataFrames vindos de fontes que geram MultiIndex
+    ou salvam colunas repetidas), ``df[name]`` pode retornar um DataFrame.
+    Este helper reduz para a primeira coluna e converte para numérico.
+    """
+    col = df[name]
+    if isinstance(col, pd.DataFrame):
+        # Converte todas as colunas para numérico e toma o maior valor por linha
+        # para evitar escolher séries subescaladas quando houver duplicatas.
+        numeric = col.apply(pd.to_numeric, errors="coerce")
+        return numeric.max(axis=1)
+    return pd.to_numeric(col, errors="coerce")
+
+
 def build_market_snapshot(
     df: pd.DataFrame,
     round_step: float = 5.0,
@@ -110,21 +126,29 @@ def build_market_snapshot(
 ) -> MarketSnapshot:
     data = _validate_input(df)
 
+    # Normaliza colunas de preço/volume para garantir Series únicas
+    close = _ensure_series(data, "Close")
+    high = _ensure_series(data, "High") if "High" in data.columns else close
+    low = _ensure_series(data, "Low") if "Low" in data.columns else close
+
     indicators = pd.DataFrame(index=data.index)
-    indicators["SMA_9"] = sma(data["Close"], 9)
-    indicators["SMA_21"] = sma(data["Close"], 21)
-    indicators["SMA_72"] = sma(data["Close"], 72)
-    indicators["SMA_200"] = sma(data["Close"], 200)
-    indicators["EMA_9"] = ema(data["Close"], 9)
-    indicators["EMA_21"] = ema(data["Close"], 21)
-    indicators["EMA_72"] = ema(data["Close"], 72)
-    indicators["EMA_200"] = ema(data["Close"], 200)
-    indicators["RSI_14"] = rsi(data["Close"], 14)
-    macd_df = macd(data["Close"])
+    indicators["SMA_9"] = sma(close, 9)
+    indicators["SMA_21"] = sma(close, 21)
+    indicators["SMA_72"] = sma(close, 72)
+    indicators["SMA_200"] = sma(close, 200)
+    indicators["EMA_9"] = ema(close, 9)
+    indicators["EMA_21"] = ema(close, 21)
+    indicators["EMA_72"] = ema(close, 72)
+    indicators["EMA_200"] = ema(close, 200)
+    indicators["RSI_14"] = rsi(close, 14)
+    macd_df = macd(close)
     indicators = indicators.join(macd_df)
-    indicators = indicators.join(bollinger_bands(data["Close"], window=21))
+    indicators = indicators.join(bollinger_bands(close, window=21))
     if "Volume" in data.columns:
-        indicators["Volume"] = data["Volume"].astype(float)
+        vol_series = data["Volume"]
+        if isinstance(vol_series, pd.DataFrame):
+            vol_series = vol_series.iloc[:, 0]
+        indicators["Volume"] = pd.to_numeric(vol_series, errors="coerce").astype(float)
         vol_ma20 = indicators["Volume"].rolling(window=20, min_periods=1).mean()
         indicators["Volume_MA20"] = vol_ma20
         volume_ratio = indicators["Volume"] / vol_ma20
@@ -226,6 +250,16 @@ def _describe_trend_regimes(snapshot: MarketSnapshot) -> tuple[List[str], str, O
             price_above_ma200 = snapshot.latest_price >= float(sma200)
 
     daily_label = _classify_trend_strength(snapshot.trend, price_above_ma200=price_above_ma200)
+    t = snapshot.trend
+    if t.direction == "sideways":
+        if t.slope_short < 0 and (t.slope_medium > 0 or t.slope_long > 0) and (
+            t.crossover == "bullish_stack" or (price_above_ma200 is True)
+        ):
+            daily_label = "correção em tendência de alta"
+        elif t.slope_short > 0 and (t.slope_medium < 0 or t.slope_long < 0) and (
+            t.crossover == "bearish_stack" or (price_above_ma200 is False)
+        ):
+            daily_label = "repique em tendência de baixa"
     lines.append(f"- Tendência diária: {daily_label}")
 
     weekly = snapshot.trend_multi.get("weekly") if snapshot.trend_multi else None
